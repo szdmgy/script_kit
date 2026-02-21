@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>脚本执行器 - script_kit</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        a { color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>脚本执行器（script_kit）</h1>
+    <p>选择分类与脚本后在此执行。当前为骨架页，阶段 4/5 将接入 API 与完整前端。</p>
+    <p><a href="{% url 'script_kit:manage_scripts' %}">进入管理页</a></p>
+    <div id="scripts-container">
+        {% if scripts %}
+            {% for cat in categories %}
+                <h3>分类: {{ cat }}</h3>
+                {% for script in scripts %}
+                    {% if script.category == cat %}
+                        <div>{{ script.name }} — {{ script.description|default:'' }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        {% else %}
+            <p>暂无脚本，请先在管理页添加（需先执行阶段 2 迁移并配置脚本）。</p>
+        {% endif %}
+    </div>
+</body>
+</html>

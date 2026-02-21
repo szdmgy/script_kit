@@ -1,0 +1,10 @@
+# 在仓库根目录执行：docker-compose up
+# 访问 http://localhost:8000/script-kit/
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./script_kit:/app/script_kit
+      - ./demo_project:/app/demo_project
