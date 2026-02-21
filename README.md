@@ -2,11 +2,13 @@
 
 Django App 形态的脚本管理 + 执行标准件，供各业务项目复用。详见 `开发计划.md`、`脚本管理与执行标准件-需求说明书.md`。
 
+**环境约定：本项目的 Python 依赖仅通过「项目内 venv」或「Docker」使用，禁止在未激活 venv 的情况下用系统 Python 运行或安装依赖。**
+
 ---
 
-## 环境依赖（推荐：项目内 venv，勿用全局 Python）
+## 环境依赖（项目内 venv 或 Docker，禁止全局）
 
-**不要**在系统全局安装依赖，请在本项目下使用**虚拟环境**：
+**不要**在系统全局安装依赖；所有 `pip install`、`python manage.py` 等均在**项目虚拟环境**或 **Docker** 内执行：
 
 ```bash
 # 在仓库根目录 G:\cursor\projects\script_kit 下执行
@@ -63,7 +65,8 @@ git remote add origin https://github.com/szdmgy/script-kit.git
 
 ## 快速运行
 
-| 方式 | 说明 |
-|------|------|
-| **本地（推荐 venv）** | 如上创建并激活 venv，`pip install -r requirements.txt`，再 `python demo_project/manage.py runserver` |
-| **Docker** | 仓库根目录执行 `docker-compose up`，访问 http://localhost:8000/script-kit/ |
+| 操作 | 方式（均使用项目环境，不用全局 Python） |
+|------|----------------------------------------|
+| **仅做迁移** | 双击 **`run_migrate.bat`**（自动 venv + 依赖 + migrate） |
+| **本地启动服务** | 双击 **`run_local.bat`**（自动 venv + 依赖 + runserver） |
+| **Docker 启动** | 仓库根目录执行 `docker-compose up`，访问 http://localhost:8000/script-kit/ |
