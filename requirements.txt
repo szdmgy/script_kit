@@ -1,0 +1,3 @@
+# script_kit 及 demo_project 运行依赖
+# 本地 venv 与 Docker 共用
+Django>=4.2,<5
