@@ -1,16 +1,249 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>脚本管理后台 - script_kit</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        a { color: #007bff; }
-    </style>
-</head>
-<body>
-    <h1>脚本管理后台（script_kit）</h1>
-    <p>脚本 CRUD、导入导出等。当前为骨架页，阶段 4/5 将接入完整功能。</p>
-    <p><a href="{% url 'script_kit:script_kit' %}">返回执行页</a></p>
-</body>
-</html>
+{% extends "script_kit/base.html" %}
+{% block title %}脚本管理 - script_kit{% endblock %}
+{% block nav_manage %}class="active"{% endblock %}
+
+{% block content %}
+<!-- 工具栏 -->
+<div class="card flex-between">
+    <h2 style="margin:0;">脚本管理</h2>
+    <div class="btn-group" style="margin:0;">
+        <button class="btn btn-primary btn-sm" onclick="showCreateModal()">+ 新建脚本</button>
+        <button class="btn btn-outline btn-sm" onclick="doImport()">导入</button>
+        <a class="btn btn-outline btn-sm" href="{% url 'script_kit:api_export_scripts' %}" target="_blank">导出</a>
+    </div>
+</div>
+
+<!-- 脚本列表 -->
+<div class="card" style="padding:0;overflow-x:auto;">
+    <table>
+        <thead>
+            <tr><th>名称</th><th>分类</th><th>脚本文件</th><th>更新时间</th><th>操作</th></tr>
+        </thead>
+        <tbody id="scripts-tbody"><tr><td colspan="5" class="text-muted" style="text-align:center;">加载中…</td></tr></tbody>
+    </table>
+</div>
+
+<!-- 新建/编辑弹窗 -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+        <h3 id="modal-title">新建脚本</h3>
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+            <label>名称 *</label>
+            <input type="text" id="edit-name">
+        </div>
+        <div class="form-row">
+            <div>
+                <label>分类 *</label>
+                <input type="text" id="edit-category" list="cat-suggestions">
+                <datalist id="cat-suggestions"></datalist>
+            </div>
+            <div>
+                <label>脚本文件 *</label>
+                <input type="text" id="edit-script-file" placeholder="category.module_name" list="file-suggestions">
+                <datalist id="file-suggestions"></datalist>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>描述</label>
+            <textarea id="edit-desc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+            <label>参数配置 (JSON)</label>
+            <textarea id="edit-params" rows="3" placeholder='{"param_name":{"type":"text","required":true,"default":"","description":"说明"}}'></textarea>
+        </div>
+        <div class="form-group">
+            <label>缺省参数 (JSON)</label>
+            <textarea id="edit-defaults" rows="2" placeholder='{"param_name":"value"}'></textarea>
+        </div>
+        <div id="presets-section" class="hidden">
+            <hr style="margin:12px 0;">
+            <div class="flex-between mb-12">
+                <label style="margin:0;font-size:14px;font-weight:600;color:var(--text);">参数预设</label>
+                <button class="btn btn-outline btn-sm" onclick="addPreset()">+ 新预设</button>
+            </div>
+            <div id="presets-list"></div>
+        </div>
+        <div class="btn-group mt-16">
+            <button class="btn btn-primary" onclick="saveScript()">保存</button>
+            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+            <button class="btn btn-danger btn-sm hidden" id="btn-delete" onclick="deleteScript()">删除脚本</button>
+        </div>
+    </div>
+</div>
+
+<!-- 导入弹窗 -->
+<div id="import-overlay" class="modal-overlay hidden" onclick="if(event.target===this)document.getElementById('import-overlay').classList.add('hidden')">
+    <div class="modal">
+        <h3>导入脚本定义</h3>
+        <div class="form-group">
+            <label>粘贴 JSON 数组</label>
+            <textarea id="import-json" rows="8" placeholder='[{"name":"...","category":"...","script_file":"..."}]'></textarea>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="submitImport()">导入</button>
+            <button class="btn btn-outline" onclick="document.getElementById('import-overlay').classList.add('hidden')">取消</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const tbody = document.getElementById('scripts-tbody');
+let allScripts = [];
+
+async function loadScripts() {
+    allScripts = await apiFetch('/scripts/');
+    if (allScripts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-muted" style="text-align:center;">暂无脚本，点击「新建脚本」添加。</td></tr>';
+        return;
+    }
+    tbody.innerHTML = allScripts.map(s => `
+        <tr>
+            <td><strong>${esc(s.name)}</strong></td>
+            <td>${esc(s.category)}</td>
+            <td style="font-family:monospace;font-size:13px;">${esc(s.script_file)}</td>
+            <td class="text-muted" style="font-size:12px;">${s.updated_at ? new Date(s.updated_at).toLocaleString('zh-CN') : '-'}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="editScript(${s.id})">编辑</button></td>
+        </tr>
+    `).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function showCreateModal() {
+    document.getElementById('modal-title').textContent = '新建脚本';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('edit-name').value = '';
+    document.getElementById('edit-category').value = '';
+    document.getElementById('edit-script-file').value = '';
+    document.getElementById('edit-desc').value = '';
+    document.getElementById('edit-params').value = '{}';
+    document.getElementById('edit-defaults').value = '{}';
+    document.getElementById('presets-section').classList.add('hidden');
+    document.getElementById('btn-delete').classList.add('hidden');
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    loadSuggestions();
+}
+
+async function editScript(id) {
+    const s = await apiFetch(`/script/${id}/`);
+    document.getElementById('modal-title').textContent = '编辑脚本';
+    document.getElementById('edit-id').value = s.id;
+    document.getElementById('edit-name').value = s.name;
+    document.getElementById('edit-category').value = s.category;
+    document.getElementById('edit-script-file').value = s.script_file;
+    document.getElementById('edit-desc').value = s.description || '';
+    document.getElementById('edit-params').value = JSON.stringify(s.parameters, null, 2);
+    document.getElementById('edit-defaults').value = JSON.stringify(s.default_parameters, null, 2);
+    document.getElementById('btn-delete').classList.remove('hidden');
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    loadSuggestions();
+    await loadPresetsForEdit(id);
+}
+
+async function loadSuggestions() {
+    const cats = await apiFetch('/categories-available/');
+    document.getElementById('cat-suggestions').innerHTML = cats.map(c => `<option value="${c}">`).join('');
+}
+
+document.getElementById('edit-category').addEventListener('input', async function() {
+    const cat = this.value;
+    if (!cat) return;
+    const files = await apiFetch(`/script-files/${encodeURIComponent(cat)}/`);
+    document.getElementById('file-suggestions').innerHTML =
+        files.map(f => `<option value="${cat}.${f}">`).join('');
+});
+
+async function loadPresetsForEdit(scriptId) {
+    const section = document.getElementById('presets-section');
+    const list = document.getElementById('presets-list');
+    const presets = await apiFetch(`/script/${scriptId}/presets/`);
+    section.classList.remove('hidden');
+    if (presets.length === 0) {
+        list.innerHTML = '<p class="text-muted">暂无预设</p>';
+        return;
+    }
+    list.innerHTML = presets.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span><strong>${esc(p.name)}</strong> <span class="text-muted" style="font-size:12px;">${JSON.stringify(p.parameters).substring(0,60)}</span></span>
+            <button class="btn btn-danger btn-sm" onclick="deletePreset(${scriptId},${p.id})">删除</button>
+        </div>
+    `).join('');
+}
+
+async function addPreset() {
+    const scriptId = document.getElementById('edit-id').value;
+    if (!scriptId) { alert('请先保存脚本后再添加预设'); return; }
+    const name = prompt('预设名称：');
+    if (!name) return;
+    const paramsStr = prompt('参数 JSON：', document.getElementById('edit-defaults').value || '{}');
+    if (paramsStr === null) return;
+    try {
+        await apiFetch(`/script/${scriptId}/presets/`, {
+            method: 'POST', body: { name, parameters: JSON.parse(paramsStr) },
+        });
+        loadPresetsForEdit(scriptId);
+    } catch(e) { alert('添加失败：' + e); }
+}
+
+async function deletePreset(scriptId, presetId) {
+    if (!confirm('确认删除此预设？')) return;
+    await apiFetch(`/script/${scriptId}/presets/${presetId}/`, { method: 'DELETE' });
+    loadPresetsForEdit(scriptId);
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+async function saveScript() {
+    let params, defaults;
+    try { params = JSON.parse(document.getElementById('edit-params').value || '{}'); } catch(e) { alert('参数配置 JSON 格式错误'); return; }
+    try { defaults = JSON.parse(document.getElementById('edit-defaults').value || '{}'); } catch(e) { alert('缺省参数 JSON 格式错误'); return; }
+
+    const body = {
+        name: document.getElementById('edit-name').value,
+        category: document.getElementById('edit-category').value,
+        script_file: document.getElementById('edit-script-file').value,
+        description: document.getElementById('edit-desc').value,
+        parameters: params,
+        default_parameters: defaults,
+    };
+
+    const editId = document.getElementById('edit-id').value;
+    if (editId) {
+        await apiFetch(`/script/${editId}/`, { method: 'PUT', body });
+    } else {
+        await apiFetch('/scripts/', { method: 'POST', body });
+    }
+    closeModal();
+    loadScripts();
+}
+
+async function deleteScript() {
+    const editId = document.getElementById('edit-id').value;
+    if (!editId || !confirm('确认删除此脚本？此操作不可撤销。')) return;
+    await apiFetch(`/script/${editId}/`, { method: 'DELETE' });
+    closeModal();
+    loadScripts();
+}
+
+function doImport() {
+    document.getElementById('import-json').value = '';
+    document.getElementById('import-overlay').classList.remove('hidden');
+}
+
+async function submitImport() {
+    let data;
+    try { data = JSON.parse(document.getElementById('import-json').value); } catch(e) { alert('JSON 格式错误'); return; }
+    const res = await apiFetch('/import-scripts/', { method: 'POST', body: data });
+    alert(`导入完成：成功 ${res.created?.length || 0} 条，失败 ${res.errors?.length || 0} 条`);
+    document.getElementById('import-overlay').classList.add('hidden');
+    loadScripts();
+}
+
+loadScripts();
+</script>
+{% endblock %}

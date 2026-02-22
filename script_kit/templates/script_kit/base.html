@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}script_kit{% endblock %}</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-hover: #3a56d4;
+            --danger: #e63946;
+            --success: #2a9d8f;
+            --warning: #e9c46a;
+            --bg: #f8f9fa;
+            --card: #fff;
+            --border: #dee2e6;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --radius: 6px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+        .topbar { background: var(--primary); color: #fff; padding: 12px 24px; display: flex; align-items: center; gap: 24px; }
+        .topbar h1 { font-size: 18px; font-weight: 600; }
+        .topbar nav a { color: rgba(255,255,255,.85); text-decoration: none; font-size: 14px; padding: 4px 10px; border-radius: var(--radius); transition: background .15s; }
+        .topbar nav a:hover, .topbar nav a.active { background: rgba(255,255,255,.18); color: #fff; }
+
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+        .card h2 { font-size: 16px; margin-bottom: 12px; color: var(--primary); }
+
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+        select, input[type="text"], input[type="number"], textarea {
+            width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+            font-size: 14px; font-family: inherit; background: #fff; transition: border-color .15s;
+        }
+        select:focus, input:focus, textarea:focus { outline: none; border-color: var(--primary); }
+        textarea { resize: vertical; min-height: 60px; font-family: "Cascadia Code", "Fira Code", monospace, sans-serif; }
+
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+        .form-row > * { flex: 1; }
+        .form-group { margin-bottom: 12px; }
+
+        button, .btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600;
+            border: none; border-radius: var(--radius); cursor: pointer; transition: background .15s, opacity .15s; text-decoration: none;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { opacity: .9; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { opacity: .9; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn-outline:hover { background: var(--bg); }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        th { font-size: 12px; text-transform: uppercase; color: var(--text-muted); background: var(--bg); }
+        tr:hover td { background: #f1f3f5; }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge-success { background: #d3f9d8; color: #2b8a3e; }
+        .badge-danger { background: #ffe3e3; color: #c92a2a; }
+        .badge-warning { background: #fff3bf; color: #e67700; }
+        .badge-info { background: #d0ebff; color: #1864ab; }
+
+        .result-box { background: #1e1e2e; color: #cdd6f4; border-radius: var(--radius); padding: 16px; font-family: "Cascadia Code", "Fira Code", monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow-y: auto; margin-top: 12px; }
+
+        .hidden { display: none !important; }
+        .mt-8 { margin-top: 8px; }
+        .mt-16 { margin-top: 16px; }
+        .mb-12 { margin-bottom: 12px; }
+        .text-muted { color: var(--text-muted); font-size: 13px; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: var(--card); border-radius: var(--radius); padding: 24px; min-width: 400px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.15); }
+        .modal h3 { margin-bottom: 16px; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="topbar">
+        <h1>script_kit</h1>
+        <nav>
+            <a href="{% url 'script_kit:script_kit' %}" {% block nav_exec %}{% endblock %}>执行</a>
+            <a href="{% url 'script_kit:manage_scripts' %}" {% block nav_manage %}{% endblock %}>管理</a>
+            <a href="/admin/" target="_blank">Admin</a>
+        </nav>
+    </div>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    <script>
+        const API = '{% url "script_kit:script_kit" %}api';
+        async function apiFetch(path, opts = {}) {
+            const url = API + path;
+            if (opts.body && typeof opts.body === 'object') {
+                opts.body = JSON.stringify(opts.body);
+                opts.headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+            }
+            const res = await fetch(url, opts);
+            const data = await res.json();
+            if (!res.ok && !opts.rawResponse) console.error('API error', res.status, data);
+            return opts.rawResponse ? { status: res.status, data } : data;
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
