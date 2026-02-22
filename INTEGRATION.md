@@ -1,14 +1,37 @@
 # script_kit 接入指南
 
-将 script_kit 标准件集成到你的 Django 项目中，只需以下几步。
+将 script_kit 标准件集成到你的 Django 项目中。
 
 ---
 
-## 1. 复制标准件
+## 方式一：一键配置（推荐）
 
-将 `script_kit/` 目录整个复制到你的项目中（与 `manage.py` 同级或作为子模块均可），确保 Python 能 import 到 `script_kit`。
+### 复制方式
 
-## 2. settings.py 配置
+1. 把 `script_kit/` 整个文件夹复制到新项目根目录（与 `manage.py` 同级）
+2. 运行：`python script_kit/setup_project.py`
+3. 完成
+
+### pip 方式
+
+1. 安装：`pip install git+https://github.com/szdmgy/script_kit.git`
+2. 运行：`python -m script_kit.setup_project`
+3. 完成
+
+一键配置脚本会自动完成以下所有步骤：settings.py 注册 app 和配置、urls.py 挂载路由、数据库建表。已配好的不会重复修改，修改前自动备份。
+
+---
+
+## 方式二：手动配置
+
+如果你想手动控制，按以下步骤操作：
+
+### 1. 获取 script_kit
+
+- **复制**：将 `script_kit/` 目录复制到项目中（与 `manage.py` 同级）
+- **pip**：`pip install git+https://github.com/szdmgy/script_kit.git`
+
+### 2. settings.py 配置
 
 ```python
 INSTALLED_APPS = [
@@ -21,9 +44,9 @@ INSTALLED_APPS = [
 SCRIPT_KIT_SCRIPTS_ROOT = 'script_kit.scripts'
 ```
 
-## 3. URL 挂载
+### 3. URL 挂载
 
-在项目的 `urls.py` 中挂载 script_kit：
+在项目的 `urls.py` 中：
 
 ```python
 from django.urls import path, include
@@ -34,12 +57,7 @@ urlpatterns = [
 ]
 ```
 
-挂载后可访问：
-- `/script-kit/` — 执行页
-- `/script-kit/manage/` — 管理页（需 staff 权限）
-- `/script-kit/api/...` — 全部 API
-
-## 4. 执行迁移
+### 4. 执行迁移
 
 ```bash
 python manage.py migrate
@@ -47,13 +65,20 @@ python manage.py migrate
 
 会创建三张表：`script_kit_definition`、`script_kit_execution`、`script_kit_parameter_preset`。
 
-## 5.（可选）初始化测试数据
+### 5.（可选）初始化测试数据
 
 ```bash
 python manage.py init_scripts
 ```
 
 幂等命令，会创建 4 条示例脚本定义（file_operations × 2、data_processing × 2）。
+
+---
+
+配置完成后可访问：
+- `/script-kit/` — 执行页
+- `/script-kit/manage/` — 管理页（需 staff 权限）
+- `/script-kit/api/...` — 全部 API
 
 ---
 

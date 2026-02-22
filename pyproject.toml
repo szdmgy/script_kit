@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "script-kit"
+version = "0.1.0"
+description = "脚本管理与执行标准件 — Django App"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "Django>=4.2",
+]
+
+[project.urls]
+Repository = "https://github.com/szdmgy/script_kit"
+
+[tool.setuptools.packages.find]
+include = ["script_kit*"]
+exclude = ["demo_project*", "tests*"]
+
+[tool.setuptools.package-data]
+script_kit = [
+    "templates/**/*.html",
+    "migrations/*.py",
+    "management/**/*.py",
+    "scripts/**/*.py",
+]
