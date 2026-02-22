@@ -1,204 +1,159 @@
 {% extends "script_kit/base.html" %}
-{% block title %}脚本执行 - script_kit{% endblock %}
+{% block title %}【脚本执行器】{% endblock %}
 {% block nav_exec %}class="active"{% endblock %}
 
+{% block sidebar %}
+<h3>脚本分类</h3>
+<ul id="cat-list">
+    <li class="active" data-cat="">全部</li>
+</ul>
+{% endblock %}
+
 {% block content %}
-<!-- 脚本选择 -->
-<div class="card">
-    <h2>选择脚本</h2>
-    <div class="form-row">
-        <div>
-            <label for="sel-category">分类</label>
-            <select id="sel-category"><option value="">-- 选择分类 --</option></select>
-        </div>
-        <div>
-            <label for="sel-script">脚本</label>
-            <select id="sel-script" disabled><option value="">-- 先选分类 --</option></select>
-        </div>
-        <div>
-            <label for="sel-preset">参数预设</label>
-            <select id="sel-preset" disabled><option value="">-- 默认 --</option></select>
-        </div>
-    </div>
-    <p id="script-desc" class="text-muted"></p>
-</div>
-
-<!-- 参数表单 -->
-<div id="params-card" class="card hidden">
-    <div class="flex-between mb-12">
-        <h2>参数</h2>
-        <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:normal;cursor:pointer;">
-            <input type="checkbox" id="chk-dryrun"> 试运行 (dry_run)
-        </label>
-    </div>
-    <div id="params-form"></div>
-    <div class="btn-group">
-        <button class="btn btn-primary" id="btn-execute" onclick="doExecute()">执行</button>
-        <button class="btn btn-outline btn-sm" onclick="saveAsDefault()">保存为缺省参数</button>
-        <button class="btn btn-outline btn-sm" onclick="promptSavePreset()">保存为预设</button>
-    </div>
-</div>
-
-<!-- 执行结果 -->
-<div id="result-card" class="card hidden">
-    <div class="flex-between">
-        <h2>执行结果</h2>
-        <span id="result-status"></span>
-    </div>
-    <div id="result-box" class="result-box"></div>
-    <p id="result-meta" class="text-muted mt-8"></p>
-</div>
+<h2 style="font-size:22px;font-weight:700;margin-bottom:4px;">【脚本执行器】</h2>
+<p class="text-muted" style="margin-bottom:20px;">在局域网内，服务器可以直接访问用户电脑上的指定目录进行文件操作</p>
+<div id="scripts-area"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const selCat = document.getElementById('sel-category');
-const selScript = document.getElementById('sel-script');
-const selPreset = document.getElementById('sel-preset');
-const paramsCard = document.getElementById('params-card');
-const paramsForm = document.getElementById('params-form');
-const resultCard = document.getElementById('result-card');
-const resultBox = document.getElementById('result-box');
-const resultStatus = document.getElementById('result-status');
-const resultMeta = document.getElementById('result-meta');
-const scriptDesc = document.getElementById('script-desc');
-
+const catList = document.getElementById('cat-list');
+const area = document.getElementById('scripts-area');
 let allScripts = [];
-let currentScript = null;
-let currentPresets = [];
+let currentCat = '';
 
 async function init() {
     allScripts = await apiFetch('/scripts/');
     const cats = [...new Set(allScripts.map(s => s.category))].sort();
-    selCat.innerHTML = '<option value="">-- 选择分类 --</option>' +
-        cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    catList.innerHTML = '<li class="active" data-cat="">全部</li>' +
+        cats.map(c => `<li data-cat="${c}">${c}</li>`).join('');
+    catList.querySelectorAll('li').forEach(li => {
+        li.addEventListener('click', () => {
+            catList.querySelector('.active')?.classList.remove('active');
+            li.classList.add('active');
+            currentCat = li.dataset.cat;
+            render();
+        });
+    });
+    render();
 }
 
-selCat.addEventListener('change', () => {
-    const cat = selCat.value;
-    const filtered = allScripts.filter(s => s.category === cat);
-    selScript.disabled = !cat;
-    selScript.innerHTML = '<option value="">-- 选择脚本 --</option>' +
-        filtered.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    selPreset.disabled = true;
-    selPreset.innerHTML = '<option value="">-- 默认 --</option>';
-    paramsCard.classList.add('hidden');
-    resultCard.classList.add('hidden');
-    scriptDesc.textContent = '';
-    currentScript = null;
-});
-
-selScript.addEventListener('change', async () => {
-    const sid = selScript.value;
-    if (!sid) { paramsCard.classList.add('hidden'); currentScript = null; return; }
-    currentScript = allScripts.find(s => s.id == sid);
-    scriptDesc.textContent = currentScript.description || '';
-    await loadPresets(sid);
-    fillParams(currentScript.default_parameters);
-    paramsCard.classList.remove('hidden');
-    resultCard.classList.add('hidden');
-});
-
-selPreset.addEventListener('change', () => {
-    const pid = selPreset.value;
-    if (!pid) { fillParams(currentScript.default_parameters); return; }
-    const preset = currentPresets.find(p => p.id == pid);
-    if (preset) fillParams(preset.parameters);
-});
-
-async function loadPresets(scriptId) {
-    currentPresets = await apiFetch(`/script/${scriptId}/presets/`);
-    selPreset.disabled = false;
-    selPreset.innerHTML = '<option value="">-- 默认 --</option>' +
-        currentPresets.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-}
-
-function fillParams(defaults) {
-    defaults = defaults || {};
-    const paramsCfg = currentScript.parameters || {};
-    const keys = Object.keys(paramsCfg);
-    if (keys.length === 0 && Object.keys(defaults).length === 0) {
-        paramsForm.innerHTML = '<p class="text-muted">此脚本无参数配置，可直接执行。</p>';
+function render() {
+    const filtered = currentCat ? allScripts.filter(s => s.category === currentCat) : allScripts;
+    if (filtered.length === 0) {
+        area.innerHTML = '<p class="text-muted" style="padding:20px;">暂无脚本。</p>';
         return;
     }
+    const grouped = {};
+    filtered.forEach(s => {
+        if (!grouped[s.category]) grouped[s.category] = [];
+        grouped[s.category].push(s);
+    });
     let html = '';
-    const allKeys = [...new Set([...keys, ...Object.keys(defaults)])];
+    for (const cat of Object.keys(grouped).sort()) {
+        html += `<div class="category-title">分类: ${esc(cat)}</div>`;
+        grouped[cat].forEach(s => { html += renderCard(s); });
+    }
+    area.innerHTML = html;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderCard(s) {
+    const paramsCfg = s.parameters || {};
+    const defaults = s.default_parameters || {};
+    const allKeys = [...new Set([...Object.keys(paramsCfg), ...Object.keys(defaults)])];
+
+    let paramsHtml = '';
     allKeys.forEach(k => {
         const cfg = paramsCfg[k] || {};
         const val = defaults[k] !== undefined ? defaults[k] : (cfg.default !== undefined ? cfg.default : '');
-        const desc = cfg.description || '';
-        const type = cfg.type || 'text';
-        const inputType = type === 'number' ? 'number' : 'text';
-        html += `<div class="form-group">
-            <label>${k}${cfg.required ? ' *' : ''}${desc ? ' — ' + desc : ''}</label>
-            <input type="${inputType}" name="${k}" value="${typeof val === 'object' ? JSON.stringify(val) : val}" data-type="${type}">
-        </div>`;
+        if (k === 'dry_run') return;
+        const displayVal = typeof val === 'object' ? JSON.stringify(val) : val;
+        paramsHtml += `<label>${esc(k)}:</label>
+            <input type="text" id="p-${s.id}-${k}" value="${esc(String(displayVal))}" data-key="${k}" data-type="${cfg.type || 'text'}">`;
     });
-    paramsForm.innerHTML = html;
+
+    const hasDryRun = 'dry_run' in paramsCfg || allKeys.some(k => k === 'dry_run') || true;
+    paramsHtml += `<label>dry_run:</label>
+        <div class="chk-wrap"><input type="checkbox" id="p-${s.id}-dry_run"></div>`;
+
+    return `<div class="script-card" id="card-${s.id}">
+        <h3>${esc(s.name)} <span class="badge badge-pending" id="status-${s.id}">待执行</span></h3>
+        <div class="desc"><strong>描述:</strong> ${esc(s.description || '无')}</div>
+        <div class="params-grid">${paramsHtml}</div>
+        <div class="btn-group">
+            <button class="btn btn-green" onclick="doExec(${s.id})">执行脚本</button>
+            <button class="btn btn-orange" onclick="toggleDetail(${s.id})">查看参数详情</button>
+            <button class="btn btn-outline btn-sm" onclick="saveDefault(${s.id})">保存为缺省</button>
+            <button class="btn btn-outline btn-sm" onclick="promptPreset(${s.id})">保存为预设</button>
+        </div>
+        <div id="detail-${s.id}" class="hidden" style="margin-top:10px;">
+            <div class="text-muted">参数配置：</div>
+            <pre style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;max-height:200px;overflow:auto;">${esc(JSON.stringify(s.parameters, null, 2))}</pre>
+        </div>
+        <div id="result-${s.id}" class="hidden"></div>
+    </div>`;
 }
 
-function collectParams() {
+function toggleDetail(id) {
+    document.getElementById('detail-' + id)?.classList.toggle('hidden');
+}
+
+function collectParams(id) {
+    const card = document.getElementById('card-' + id);
     const params = {};
-    paramsForm.querySelectorAll('input[name]').forEach(el => {
+    card.querySelectorAll('.params-grid input[type="text"]').forEach(el => {
         let val = el.value;
         const type = el.dataset.type;
         if (type === 'number') val = Number(val);
         else { try { val = JSON.parse(val); } catch(_) {} }
-        params[el.name] = val;
+        params[el.dataset.key] = val;
     });
-    if (document.getElementById('chk-dryrun').checked) params.dry_run = true;
+    const chk = document.getElementById('p-' + id + '-dry_run');
+    if (chk && chk.checked) params.dry_run = true;
     return params;
 }
 
-async function doExecute() {
-    if (!currentScript) return;
-    const btn = document.getElementById('btn-execute');
-    btn.disabled = true; btn.textContent = '执行中…';
-    resultCard.classList.remove('hidden');
-    resultBox.textContent = '正在执行，请稍候…';
-    resultStatus.innerHTML = '<span class="badge badge-warning">running</span>';
-    resultMeta.textContent = '';
+async function doExec(id) {
+    const badge = document.getElementById('status-' + id);
+    const resultDiv = document.getElementById('result-' + id);
+    badge.className = 'badge badge-running';
+    badge.textContent = '执行中…';
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = '<div class="result-block">正在执行，请稍候…</div>';
 
-    try {
-        const res = await apiFetch('/execute/', {
-            method: 'POST',
-            body: { script_id: currentScript.id, params: collectParams() },
-        });
-        const statusBadge = res.status === 'completed'
-            ? '<span class="badge badge-success">完成</span>'
-            : '<span class="badge badge-danger">失败</span>';
-        resultStatus.innerHTML = statusBadge;
-        resultBox.textContent = res.status === 'completed'
-            ? JSON.stringify(res.result, null, 2)
-            : (res.error_message || JSON.stringify(res, null, 2));
-        resultMeta.textContent = `耗时 ${res.duration?.toFixed(2) || '?'}s | 执行 ID: ${res.id}`;
-    } catch (e) {
-        resultStatus.innerHTML = '<span class="badge badge-danger">错误</span>';
-        resultBox.textContent = e.toString();
-    } finally {
-        btn.disabled = false; btn.textContent = '执行';
+    const params = collectParams(id);
+    const res = await apiFetch('/execute/', { method: 'POST', body: { script_id: id, params } });
+
+    if (res.status === 'completed') {
+        badge.className = 'badge badge-success';
+        badge.textContent = '执行成功';
+        resultDiv.innerHTML = `<div class="result-block">${esc(JSON.stringify(res.result, null, 2))}</div>
+            <div class="text-muted mt-8">耗时 ${res.duration?.toFixed(2) || '?'}s | 执行ID: ${res.id}</div>`;
+    } else {
+        badge.className = 'badge badge-fail';
+        badge.textContent = '执行失败';
+        resultDiv.innerHTML = `<div class="result-block" style="color:#f38ba8;">${esc(res.error_message || JSON.stringify(res, null, 2))}</div>`;
     }
 }
 
-async function saveAsDefault() {
-    if (!currentScript) return;
-    const params = collectParams();
+async function saveDefault(id) {
+    const params = collectParams(id);
     delete params.dry_run;
-    await apiFetch(`/script/${currentScript.id}/default-parameters/`, {
-        method: 'PUT', body: { default_parameters: params },
-    });
-    currentScript.default_parameters = params;
+    await apiFetch(`/script/${id}/default-parameters/`, { method: 'PUT', body: { default_parameters: params } });
+    const s = allScripts.find(x => x.id === id);
+    if (s) s.default_parameters = params;
     alert('已保存为缺省参数');
 }
 
-function promptSavePreset() {
+function promptPreset(id) {
     const name = prompt('请输入预设名称：');
     if (!name) return;
-    const params = collectParams();
+    const params = collectParams(id);
     delete params.dry_run;
-    apiFetch(`/script/${currentScript.id}/presets/`, {
-        method: 'POST', body: { name, parameters: params },
-    }).then(() => { loadPresets(currentScript.id); alert('预设已保存'); });
+    apiFetch(`/script/${id}/presets/`, { method: 'POST', body: { name, parameters: params } })
+        .then(() => alert('预设已保存'));
 }
 
 init();
