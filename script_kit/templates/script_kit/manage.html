@@ -14,25 +14,28 @@
 {% endblock %}
 
 {% block content %}
-<h2 style="font-size:22px;font-weight:700;margin-bottom:16px;">【脚本管理后台】</h2>
+<h2 style="font-size:30px;font-weight:700;margin-bottom:20px;">【脚本管理后台】</h2>
 
 <div class="toolbar">
     <button class="btn btn-primary" onclick="showCreate()">+ 添加脚本</button>
     <button class="btn btn-green" onclick="loadScripts()">刷新列表</button>
     <button class="btn btn-blue" onclick="exportSelected()">导出选中</button>
     <a class="btn btn-blue" href="{% url 'script_kit:api_export_scripts' %}" target="_blank" style="text-decoration:none;">导出全部</a>
-    <button class="btn btn-orange" onclick="showImport()">导入脚本</button>
+    <label class="btn btn-orange" style="cursor:pointer;">
+        导入脚本
+        <input type="file" accept=".json" id="import-file" style="display:none;" onchange="handleImportFile(this)">
+    </label>
 </div>
 
 <table>
     <thead>
         <tr>
-            <th style="width:30px;"><input type="checkbox" id="chk-all" onchange="toggleAll(this)"></th>
-            <th style="width:50px;">ID</th>
+            <th style="width:36px;"><input type="checkbox" id="chk-all" onchange="toggleAll(this)" style="width:20px;height:20px;"></th>
+            <th style="width:60px;">ID</th>
             <th>脚本名称</th>
             <th>分类</th>
             <th>描述</th>
-            <th style="width:80px;">操作</th>
+            <th style="width:100px;">操作</th>
         </tr>
     </thead>
     <tbody id="scripts-tbody">
@@ -50,33 +53,13 @@
             <div class="form-group"><label>分类 *</label><input type="text" id="edit-category" list="cat-dl"><datalist id="cat-dl"></datalist></div>
             <div class="form-group"><label>脚本文件 *</label><input type="text" id="edit-script-file" placeholder="category.module" list="file-dl"><datalist id="file-dl"></datalist></div>
         </div>
-        <div class="form-group"><label>描述</label><textarea id="edit-desc" rows="2"></textarea></div>
-        <div class="form-group"><label>参数配置 (JSON)</label><textarea id="edit-params" rows="3"></textarea></div>
-        <div class="form-group"><label>缺省参数 (JSON)</label><textarea id="edit-defaults" rows="2"></textarea></div>
-        <div id="presets-section" class="hidden">
-            <hr style="margin:10px 0;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <strong style="font-size:13px;">参数预设</strong>
-                <button class="btn btn-outline btn-sm" onclick="addPreset()">+ 新预设</button>
-            </div>
-            <div id="presets-list"></div>
-        </div>
-        <div class="btn-group" style="margin-top:16px;">
+        <div class="form-group"><label>描述</label><textarea id="edit-desc" rows="4"></textarea></div>
+        <div class="form-group"><label>参数配置 (JSON)</label><textarea id="edit-params" rows="10"></textarea></div>
+        <div class="form-group"><label>缺省参数 (JSON)</label><textarea id="edit-defaults" rows="6"></textarea></div>
+        <div class="btn-group" style="margin-top:20px;">
             <button class="btn btn-green" onclick="saveScript()">保存</button>
             <button class="btn btn-outline" onclick="closeModal()">取消</button>
-            <button class="btn btn-red btn-sm hidden" id="btn-del" onclick="delScript()">删除</button>
-        </div>
-    </div>
-</div>
-
-<!-- 导入弹窗 -->
-<div id="import-overlay" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
-    <div class="modal">
-        <h3>导入脚本</h3>
-        <div class="form-group"><label>粘贴 JSON 数组</label><textarea id="import-json" rows="8"></textarea></div>
-        <div class="btn-group">
-            <button class="btn btn-green" onclick="submitImport()">导入</button>
-            <button class="btn btn-outline" onclick="document.getElementById('import-overlay').classList.add('hidden')">取消</button>
+            <button class="btn btn-red hidden" id="btn-del" onclick="delScript()">删除脚本</button>
         </div>
     </div>
 </div>
@@ -114,22 +97,18 @@ function renderTable() {
         return;
     }
     tbody.innerHTML = filtered.map(s => `<tr>
-        <td><input type="checkbox" class="row-chk" value="${s.id}"></td>
+        <td><input type="checkbox" class="row-chk" value="${s.id}" style="width:20px;height:20px;"></td>
         <td>${s.id}</td>
         <td><strong style="cursor:pointer;color:var(--primary);" onclick="editScript(${s.id})">${esc(s.name)}</strong></td>
         <td>${esc(s.category)}</td>
-        <td class="text-muted">${esc((s.description || '').substring(0, 60))}${(s.description || '').length > 60 ? '...' : ''}</td>
+        <td class="text-muted">${esc((s.description || '').substring(0, 80))}${(s.description || '').length > 80 ? '…' : ''}</td>
         <td><button class="btn btn-outline btn-sm" onclick="editScript(${s.id})">编辑</button></td>
     </tr>`).join('');
 }
 
-function toggleAll(el) {
-    document.querySelectorAll('.row-chk').forEach(c => c.checked = el.checked);
-}
+function toggleAll(el) { document.querySelectorAll('.row-chk').forEach(c => c.checked = el.checked); }
 
-function getSelected() {
-    return [...document.querySelectorAll('.row-chk:checked')].map(c => Number(c.value));
-}
+function getSelected() { return [...document.querySelectorAll('.row-chk:checked')].map(c => Number(c.value)); }
 
 function exportSelected() {
     const ids = getSelected();
@@ -151,7 +130,6 @@ function showCreate() {
     document.getElementById('edit-desc').value = '';
     document.getElementById('edit-params').value = '{}';
     document.getElementById('edit-defaults').value = '{}';
-    document.getElementById('presets-section').classList.add('hidden');
     document.getElementById('btn-del').classList.add('hidden');
     document.getElementById('modal-overlay').classList.remove('hidden');
     loadSuggestions();
@@ -170,7 +148,6 @@ async function editScript(id) {
     document.getElementById('btn-del').classList.remove('hidden');
     document.getElementById('modal-overlay').classList.remove('hidden');
     loadSuggestions();
-    loadPresets(id);
 }
 
 async function loadSuggestions() {
@@ -183,37 +160,6 @@ document.getElementById('edit-category').addEventListener('input', async functio
     const files = await apiFetch(`/script-files/${encodeURIComponent(this.value)}/`);
     document.getElementById('file-dl').innerHTML = files.map(f => `<option value="${this.value}.${f}">`).join('');
 });
-
-async function loadPresets(scriptId) {
-    const section = document.getElementById('presets-section');
-    const list = document.getElementById('presets-list');
-    const presets = await apiFetch(`/script/${scriptId}/presets/`);
-    section.classList.remove('hidden');
-    if (!presets.length) { list.innerHTML = '<div class="text-muted">暂无预设</div>'; return; }
-    list.innerHTML = presets.map(p => `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);">
-        <span><strong>${esc(p.name)}</strong> <span class="text-muted">${JSON.stringify(p.parameters).substring(0,50)}</span></span>
-        <button class="btn btn-red btn-sm" onclick="delPreset(${scriptId},${p.id})">删除</button>
-    </div>`).join('');
-}
-
-async function addPreset() {
-    const sid = document.getElementById('edit-id').value;
-    if (!sid) { alert('请先保存脚本'); return; }
-    const name = prompt('预设名称：');
-    if (!name) return;
-    const ps = prompt('参数 JSON：', document.getElementById('edit-defaults').value || '{}');
-    if (ps === null) return;
-    try {
-        await apiFetch(`/script/${sid}/presets/`, { method: 'POST', body: { name, parameters: JSON.parse(ps) } });
-        loadPresets(sid);
-    } catch(e) { alert('失败：' + e); }
-}
-
-async function delPreset(sid, pid) {
-    if (!confirm('确认删除此预设？')) return;
-    await apiFetch(`/script/${sid}/presets/${pid}/`, { method: 'DELETE' });
-    loadPresets(sid);
-}
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
@@ -243,18 +189,20 @@ async function delScript() {
     loadScripts();
 }
 
-function showImport() {
-    document.getElementById('import-json').value = '';
-    document.getElementById('import-overlay').classList.remove('hidden');
-}
-
-async function submitImport() {
-    let data;
-    try { data = JSON.parse(document.getElementById('import-json').value); } catch(e) { alert('JSON 格式错误'); return; }
-    const res = await apiFetch('/import-scripts/', { method: 'POST', body: data });
-    alert(`导入完成：成功 ${res.created?.length || 0} 条，失败 ${res.errors?.length || 0} 条`);
-    document.getElementById('import-overlay').classList.add('hidden');
-    loadScripts();
+function handleImportFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        let data;
+        try { data = JSON.parse(e.target.result); } catch(err) { alert('文件内容不是有效 JSON'); return; }
+        if (!Array.isArray(data)) data = [data];
+        const res = await apiFetch('/import-scripts/', { method: 'POST', body: data });
+        alert(`导入完成：成功 ${res.created?.length || 0} 条，失败 ${res.errors?.length || 0} 条`);
+        loadScripts();
+    };
+    reader.readAsText(file, 'utf-8');
+    input.value = '';
 }
 
 loadScripts();

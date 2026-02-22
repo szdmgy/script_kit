@@ -275,13 +275,20 @@ def import_scripts(request):
     created, errors = [], []
     for i, item in enumerate(data):
         try:
+            params = item.get('parameters', {})
+            default_params = item.get('default_parameters')
+            if not default_params and params:
+                default_params = {
+                    k: v.get('default', '') for k, v in params.items()
+                    if isinstance(v, dict) and 'default' in v
+                }
             s = ScriptDefinition.objects.create(
                 name=item['name'],
                 description=item.get('description', ''),
                 category=item['category'],
                 script_file=item['script_file'],
-                parameters=item.get('parameters', {}),
-                default_parameters=item.get('default_parameters', {}),
+                parameters=params,
+                default_parameters=default_params or {},
             )
             created.append(_script_to_dict(s))
         except Exception as e:

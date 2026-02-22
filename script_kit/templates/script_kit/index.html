@@ -10,8 +10,8 @@
 {% endblock %}
 
 {% block content %}
-<h2 style="font-size:22px;font-weight:700;margin-bottom:4px;">【脚本执行器】</h2>
-<p class="text-muted" style="margin-bottom:20px;">在局域网内，服务器可以直接访问用户电脑上的指定目录进行文件操作</p>
+<h2 style="font-size:30px;font-weight:700;margin-bottom:6px;">【脚本执行器】</h2>
+<p class="text-muted" style="margin-bottom:24px;">在局域网内，服务器可以直接访问用户电脑上的指定目录进行文件操作</p>
 <div id="scripts-area"></div>
 {% endblock %}
 
@@ -66,15 +66,14 @@ function renderCard(s) {
 
     let paramsHtml = '';
     allKeys.forEach(k => {
+        if (k === 'dry_run') return;
         const cfg = paramsCfg[k] || {};
         const val = defaults[k] !== undefined ? defaults[k] : (cfg.default !== undefined ? cfg.default : '');
-        if (k === 'dry_run') return;
         const displayVal = typeof val === 'object' ? JSON.stringify(val) : val;
         paramsHtml += `<label>${esc(k)}:</label>
             <input type="text" id="p-${s.id}-${k}" value="${esc(String(displayVal))}" data-key="${k}" data-type="${cfg.type || 'text'}">`;
     });
 
-    const hasDryRun = 'dry_run' in paramsCfg || allKeys.some(k => k === 'dry_run') || true;
     paramsHtml += `<label>dry_run:</label>
         <div class="chk-wrap"><input type="checkbox" id="p-${s.id}-dry_run"></div>`;
 
@@ -85,12 +84,11 @@ function renderCard(s) {
         <div class="btn-group">
             <button class="btn btn-green" onclick="doExec(${s.id})">执行脚本</button>
             <button class="btn btn-orange" onclick="toggleDetail(${s.id})">查看参数详情</button>
-            <button class="btn btn-outline btn-sm" onclick="saveDefault(${s.id})">保存为缺省</button>
-            <button class="btn btn-outline btn-sm" onclick="promptPreset(${s.id})">保存为预设</button>
+            <button class="btn btn-outline" onclick="saveDefault(${s.id})">保存为缺省参数</button>
         </div>
-        <div id="detail-${s.id}" class="hidden" style="margin-top:10px;">
+        <div id="detail-${s.id}" class="hidden" style="margin-top:12px;">
             <div class="text-muted">参数配置：</div>
-            <pre style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;max-height:200px;overflow:auto;">${esc(JSON.stringify(s.parameters, null, 2))}</pre>
+            <pre style="background:#f5f5f5;padding:10px;border-radius:4px;font-size:17px;max-height:250px;overflow:auto;">${esc(JSON.stringify(s.parameters, null, 2))}</pre>
         </div>
         <div id="result-${s.id}" class="hidden"></div>
     </div>`;
@@ -145,15 +143,6 @@ async function saveDefault(id) {
     const s = allScripts.find(x => x.id === id);
     if (s) s.default_parameters = params;
     alert('已保存为缺省参数');
-}
-
-function promptPreset(id) {
-    const name = prompt('请输入预设名称：');
-    if (!name) return;
-    const params = collectParams(id);
-    delete params.dry_run;
-    apiFetch(`/script/${id}/presets/`, { method: 'POST', body: { name, parameters: params } })
-        .then(() => alert('预设已保存'));
 }
 
 init();
